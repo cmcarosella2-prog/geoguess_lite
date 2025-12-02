@@ -1,15 +1,27 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>GeoGuess Lite</title>
-    <link rel="stylesheet" href="style.css">
+    style.css
 </head>
 <body>
     <h1>GeoGuess Lite</h1>
     <div id="game-container">
+        <!-- Loading Spinner -->
+        <div class="spinner" id="spinner"></div>
+
+        <!-- Street View Image -->
         <img id="street-view" src="" alt="Street View">
+
+        <!-- Progress Bar -->
+        <div id="progress-container">
+            <div id="progress-bar"></div>
+        </div>
+
+        <!-- Controls -->
         <div id="controls">
             <select id="mode">
                 <option value="easy">Easy (Country)</option>
@@ -18,9 +30,10 @@
             <input type="text" id="guess" placeholder="Enter your guess">
             <button onclick="submitGuess()">Submit</button>
         </div>
+
         <p id="result"></p>
         <p id="score">Score: 0</p>
     </div>
-    <script src="script.js"></script>
+    script.js</script>
 </body>
 </html>
