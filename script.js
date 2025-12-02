@@ -1,4 +1,3 @@
-
 let apiKey = 'YOUR_API_KEY'; // Replace with your Google API key
 let locations = [
     {lat: 48.8584, lng: 2.2945, country: 'France', city: 'Paris'},
@@ -54,4 +53,3 @@ window.onload = () => {
     loadImage();
     updateProgressBar();
 };
-
