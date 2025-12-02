@@ -1,27 +1,21 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GeoGuess Lite</title>
-    <link rel="stylesheet" href="styleeoGuess Lite</h1>
-    <div id="game-container">
-        <div class="spinner" id="spinner"></div>
-        <img id="street-view" src="" alt="Street View">
-        <div id="progress-container">
-            <div id="progress-bar"></div>
-        </div>
-        <div id="controls">
-            <select id="mode">
-                <option value="easy">Easy (Country)</option>
-                <option value="hard">Hard (City)</option>
-            </select>
-            <input type="text" id="guess" placeholder="Enter your guess">
-            <button onclick="submitGuess()">Submit</button>
-        </div>
-        <p id="result"></p>
-        <p id="score">Score: 0</p>
-    </div>
-    script.js</script>
+    <title>Street View Game</title>
+</head>
+<body>
+    <h1>Street View</h1>
+    <select id="difficulty">
+        <option>Easy (Country)</option>
+        <option>Medium (Region)</option>
+        <option>Hard (City)</option>
+    </select>
+    <input type="text" id="guess" placeholder="Enter your guess">
+    <button onclick="submitGuess()">Submit</button>
+    <p id="score">Score: 0</p>
+    <div id="street-view"></div>
+
+    <!-- ✅ Correct way to include JS -->
+    <script src="ript>
 </body>
 </html>
