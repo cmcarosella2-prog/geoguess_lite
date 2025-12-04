@@ -2,7 +2,21 @@ let places = [];
 let usedPlaces = new Set();
 let currentPlace = null;
 let score = 0;
+function initMap() {
+  const mapOptions = {
+    center: { lat: -34.397, lng: 150.644 }, // Initial center coordinates
+    zoom: 8, // Initial zoom level
+  };
 
+  const map = new google.maps.Map(document.getElementById("map"), mapOptions);
+
+  // You can add markers, info windows, or other features here
+  const marker = new google.maps.Marker({
+    position: { lat: -34.397, lng: 150.644 },
+    map: map,
+    title: "Hello Google Maps!",
+  });
+}
 // Load places from places.json
 async function loadPlaces() {
     const response = await fetch('places.json');
