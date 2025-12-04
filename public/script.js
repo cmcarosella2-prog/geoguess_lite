@@ -1,55 +1,79 @@
-let apiKey = 'YOUR_API_KEY'; // Replace with your Google API key
-let locations = [
-    {lat: 48.8584, lng: 2.2945, country: 'France', city: 'Paris'},
-    {lat: 40.6892, lng: -74.0445, country: 'USA', city: 'New York'},
-    {lat: 35.6586, lng: 139.7454, country: 'Japan', city: 'Tokyo'},
-    {lat: -33.8568, lng: 151.2153, country: 'Australia', city: 'Sydney'},
-    {lat: 51.5007, lng: -0.1246, country: 'UK', city: 'London'}
-];
-
-let currentLocation;
+let places = [];
+let usedPlaces = new Set();
+let currentPlace = null;
 let score = 0;
-let maxScore = 10; // For progress bar
 
-function showSpinner(show) {
-    document.getElementById('spinner').style.display = show ? 'block' : 'none';
+// Load places from places.json
+async function loadPlaces() {
+    const response = await fetch('places.json');
+    places = await response.json();
+    nextLocation();
 }
 
-function updateProgressBar() {
-    let progress = (score / maxScore) * 100;
-    document.getElementById('progress-bar').style.width = progress + '%';
-}
+// Pick next location based on score weighting
+function nextLocation() {
+    let difficultyPool;
 
-function loadImage() {
-    showSpinner(true);
-    currentLocation = locations[Math.floor(Math.random() * locations.length)];
-    let imageUrl = `https://maps.googleapis.com/maps/api/streetview?size=600x400&location=${currentLocation.lat},${currentLocation.lng}&key=${apiKey}`;
-    
-    let img = document.getElementById('street-view');
-    img.onload = () => showSpinner(false);
-    img.src = imageUrl;
-}
-
-function submitGuess() {
-    let guess = document.getElementById('guess').value.trim().toLowerCase();
-    let mode = document.getElementById('mode').value;
-    let result = document.getElementById('result';
-
-    if ((mode === 'easy' && guess === currentLocation.country.toLowerCase()) ||
-        (mode === 'hard' && guess === currentLocation.city.toLowerCase())) {
-        score++;
-        result.textContent = '✅ Correct!';
+    if (score <= 7) {
+        difficultyPool = places.filter(p => p.difficulty === 'easy');
+    } else if (score <= 15) {
+        difficultyPool = places.filter(p => p.difficulty === 'medium' || p.difficulty === 'easy');
     } else {
-        result.textContent = `❌ Wrong! It was ${mode === 'easy' ? currentLocation.country : currentLocation.city}.`;
+        difficultyPool = places.filter(p => ['easy', 'medium', 'hard'].includes(p.difficulty));
     }
 
-    document.getElementById('score').textContent = `Score: ${score}`;
-    updateProgressBar();
-    document.getElementById('guess').value = '';
-    loadImage();
+    // Remove used places
+    difficultyPool = difficultyPool.filter(p => !usedPlaces.has(p.name));
+
+    if (difficultyPool.length === 0) {
+        alert('No more locations available!');
+        return;
+    }
+
+    // Random pick
+    currentPlace = difficultyPool[Math.floor(Math.random() * difficultyPool.length)];
+    usedPlaces.add(currentPlace.name);
+
+    // Show Street View
+    showStreetView(currentPlace.lat, currentPlace.lng);
 }
 
-window.onload = () => {
-    loadImage();
-    updateProgressBar();
-};
+// Google Maps Street View
+function showStreetView(lat, lng) {
+    const panorama = new google.maps.StreetViewPanorama(
+        document.getElementById('street-view'),
+        {
+            position: { lat: lat, lng: lng },
+            pov: { heading: 165, pitch: 0 },
+            zoom: 1
+        }
+    );
+}
+
+// Submit guess
+function submitGuess() {
+    const guess = document.getElementById('guess').value.trim().toLowerCase();
+    const correctCity = currentPlace.city.toLowerCase();
+    const correctCountry = currentPlace.country.toLowerCase();
+
+    if (guess === correctCity || guess === correctCountry) {
+        alert('✅ Correct!');
+        score++;
+    } else {
+        alert('❌ Incorrect!');
+        score--;
+    }
+
+    document.getElementById('score').innerText = `Score: ${score}`;
+    document.getElementById('guess').value = '';
+    nextLocation();
+}
+
+// Give up button
+function giveUp() {
+    alert(`The correct answer was: ${currentPlace.city}, ${currentPlace.country}`);
+    nextLocation();
+}
+
+// Initialize game
+window.onload = loadPlaces;
