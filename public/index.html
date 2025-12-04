@@ -1,34 +1,51 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GeoGuess Lite</title>
-    <link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GeoGuess Lite</title>
+  style.css
+  <style>
+    /* Ensure Street View has a visible height */
+    #streetview { width: 100%; height: 500px; border-radius: 10px; background: #eee; }
+    .controls { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-top: 12px; }
+    .status--success { color: green; }
+    .status--error { color: red; }
+    .status--warn { color: #cc7a00; }
+    .status--info { color: #333; }
+  </style>
 </head>
 <body>
-    <h1>GeoGuess Lite</h1>
-    <div id="game-container">
-        <div class="spinner" id="spinner"></div>
-        <div id="street view" src="" alt="Street View">
-        <div id="progress-container">
-            <div id="progress-bar"></div>
-        </div>
-        <div id="controls">
-            <select id="mode">
-                <option value="easy">Easy (Country)</option>
-                <option value="hard">Hard (City)</option>
-            </select>
-            <input type="text" id="guessInput" placeholder="Enter your guess">
-            <button onclick="submitGuess()">Submit</button>
-            <button onclick="giveUp()">I Give Up</button>
-        </div>
-        <p id="result"></p>
-        <p id="score">Score: 0</p>
-    </div>
-    <div id="map" style="height: 450px; width: 100%;"></div>
-    </div>
-    <script.js></script>
-script.js</script>https://maps.googleapis.com/maps/api/js?key=AIzaSyB3JNFN7P0iA2LZKq8ADpllhRDlsCHcxMQ&callback=initMap
+
+  <h1>GeoGuess Lite</h1>
+
+  <!-- ✅ Street View MUST be a div and MUST have height -->
+  <div id="streetview" aria-label="Street View"></div>
+
+  <div class="controls">
+    <!-- Optional difficulty selector (works with the new script) -->
+    <select id="difficultySelect">
+      <option value="easy-country">Easy (Country)</option>
+      <option value="medium-city">Medium (City/Place)</option>
+      <option value="hard-place">Hard (Place)</option>
+    </select>
+
+    <!-- ✅ IDs must match the script -->
+    <input type="text" id="guessInput" placeholder="Enter your guess" />
+    <button id="guessBtn">Submit</button>
+    <button id="giveUpBtn">I Give Up</button>
+    <button id="nextBtn" disabled>Next</button>
+
+    <span id="score">Score: 0 • Rounds: 0</span>
+  </div>
+
+  <p id="status" class="status--info">Loading…</p>
+  <p id="meta"></p>
+
+  <!-- ✅ Load your app script FIRST so `initMap` exists when Google calls back -->
+  script.js</script>
+
+  <!-- ✅ Google Maps JavaScript API must be enabled for your key -->
+  https://maps.googleapis.com/maps/api/js?key=AIzaSyB3JNFN7P0iA2LZKq8ADpllhRDlsCHcxMQ&callback=initMap</script>
 </body>
 </html>
