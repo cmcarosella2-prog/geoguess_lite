@@ -5,12 +5,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>GeoGuess Lite</title>
     <link rel="stylesheet" href="style.css">
+    <script type="module" src="./index.js"></script>
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyB3JNFN7P0iA2LZKq8ADpllhRDlsCHcxMQ&callback=initMap"></script>
 </head>
 <body>
     <h1>GeoGuess Lite</h1>
     <div id="game-container">
         <div class="spinner" id="spinner"></div>
-        <img id="street-view" src="" alt="Street View">
+        <gmp-map
+            center="37.4220656,-122.0840897"
+            zoom="10"
+            map-id="DEMO_MAP_ID"
+            style="height: 500px"></gmp-map>
         <div id="progress-container">
             <div id="progress-bar"></div>
         </div>
@@ -29,6 +35,5 @@
     <div id="map" style="height: 400px; width: 100%;"></div>
     </div>
     <script.js></script>
-  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyB3JNFN7P0iA2LZKq8ADpllhRDlsCHcxMQ&callback=initMap"></script>
 </body>
 </html>
