@@ -1,7 +1,7 @@
 /* GeoGuess Lite — robust Street View script matching your HTML IDs */
 
 (() => {
-  let panorama = null;        // Street View viewer
+  let panorama = null;        // street-view viewer
   let map = null;             // Optional off-DOM map to bind SV
   let PLACES = [];            // Loaded from places.json
   const used = new Set();     // Avoid repeats
