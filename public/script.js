@@ -1,72 +1,70 @@
-/* GeoGuess Lite — robust Street View with coverage checks */
+/* GeoGuess Lite — robust Street View script matching your HTML IDs */
 
 (() => {
-  let panorama = null;
-  let map = null;
-
-  let PLACES = [];
-  const used = new Set();
-  let current = null;
+  let panorama = null;        // Street View viewer
+  let map = null;             // Optional off-DOM map to bind SV
+  let PLACES = [];            // Loaded from places.json
+  const used = new Set();     // Avoid repeats
+  let current = null;         // Current place
 
   const els = {
-    streetview: null, score: null, status: null,
-    guessInput: null, guessBtn: null, giveUpBtn: null, nextBtn: null, meta: null
+    sv: null,      // #street-view
+    mode: null,    // #mode
+    guess: null,   // #guess
+    result: null,  // #result
+    score: null    // #score
   };
 
-  const log = (...args) => console.debug('[GeoGuess]', ...args);
+  let score = 0;
 
-  function setStatus(msg, type = 'info') {
-    if (!els.status) return;
-    els.status.textContent = msg;
-    els.status.className = '';
-    els.status.classList.add('status', `status--${type}`);
-    log(type.toUpperCase() + ':', msg);
+  function setResult(msg) {
+    if (els.result) els.result.textContent = msg || '';
+  }
+  function renderScore() {
+    if (els.score) els.score.textContent = `Score: ${score}`;
   }
 
-  function renderScore(score, rounds) {
-    if (els.score) els.score.textContent = `Score: ${score} • Rounds: ${rounds}`;
-  }
-
-  let score = 0, rounds = 0;
-
+  // ----- Load places.json from site root -----
   async function loadPlaces() {
     try {
       const res = await fetch(`places.json?cb=${Math.random().toString(36).slice(2)}`);
       if (!res.ok) throw new Error(`places.json ${res.status} ${res.statusText}`);
       const data = await res.json();
       if (!Array.isArray(data) || data.length === 0) throw new Error('places.json empty or not array');
+
       PLACES = data
         .filter(p => Number.isFinite(p.lat) && Number.isFinite(p.lng))
         .map(p => ({
           id: p.id || `${p.name || 'place'}-${p.lat}-${p.lng}`,
-          name: p.name || '', city: p.city || '', country: p.country || '',
-          lat: p.lat, lng: p.lng, pov: p.pov || null
+          name: p.name || '',
+          city: p.city || '',
+          country: p.country || '',
+          lat: p.lat,
+          lng: p.lng,
+          pov: p.pov && typeof p.pov === 'object' ? p.pov : null
         }));
-      log('Loaded places:', PLACES.length);
+
       return true;
     } catch (e) {
-      console.error(e);
-      setStatus(`Error loading places.json: ${e.message}`, 'error');
+      console.error('places.json load error:', e);
+      setResult(`Error loading places.json: ${e.message}`);
       return false;
     }
   }
 
-  // Find nearest panorama using StreetViewService (robust to non-road coords)
+  // ----- Find nearest panorama using StreetViewService -----
   function findPanoramaNear(lat, lng) {
     return new Promise((resolve) => {
       const sv = new google.maps.StreetViewService();
       const target = new google.maps.LatLng(lat, lng);
-      const radii = [50, 150, 300, 600]; // meters
+      const radii = [50, 150, 300, 600]; // progressively widen search
 
       const attempt = (i) => {
         if (i >= radii.length) return resolve(null);
         sv.getPanorama({ location: target, radius: radii[i] })
           .then(({ data }) => {
-            if (data?.location?.latLng) {
-              resolve(data.location.latLng);
-            } else {
-              attempt(i + 1);
-            }
+            const pos = data?.location?.latLng || null;
+            resolve(pos || null);
           })
           .catch(() => attempt(i + 1));
       };
@@ -74,9 +72,11 @@
     });
   }
 
+  // ----- Create/Update Street View viewer -----
   function showPanoramaAt(latLng, place) {
     if (!panorama) {
-      panorama = new google.maps.StreetViewPanorama(els.streetview, {
+      // IMPORTANT: Street View uses StreetViewPanorama, not Map
+      panorama = new google.maps.StreetViewPanorama(els.sv, {
         position: latLng,
         pov: place.pov || { heading: 0, pitch: 0 },
         linksControl: true,
@@ -90,6 +90,7 @@
       if (place.pov) panorama.setPov(place.pov);
     }
 
+    // Optional: bind to a map (off-DOM) to keep Street View in sync
     if (map) {
       map.setCenter(latLng);
       map.setZoom(14);
@@ -97,124 +98,105 @@
     }
   }
 
-  function resetRoundUI() {
-    els.guessInput.value = '';
-    els.guessInput.disabled = false;
-    els.guessBtn.disabled = false;
-    els.giveUpBtn.disabled = false;
-    els.nextBtn.disabled = true;
-    els.guessInput.focus();
-    if (els.meta) els.meta.textContent = '';
-    setStatus('Make a guess!', 'info');
-  }
-
-  function lockRoundUI() {
-    els.guessInput.disabled = true;
-    els.guessBtn.disabled = true;
-    els.giveUpBtn.disabled = true;
-    els.nextBtn.disabled = false;
-  }
-
+  // ----- Game flow: pick a place with coverage -----
   async function startRound() {
-    // pick a random unused place
-    const candidates = PLACES.filter(p => !used.has(p.id));
-    if (!candidates.length) {
-      used.clear();
-      setStatus('All locations used — restarting pool…', 'info');
-    }
+    setResult('Loading a location…');
+
+    // Build pool excluding used
     const pool = PLACES.filter(p => !used.has(p.id));
     if (!pool.length) {
-      setStatus('No valid places available. Update places.json.', 'error');
+      used.clear();
+    }
+
+    const candidates = PLACES.filter(p => !used.has(p.id));
+    if (!candidates.length) {
+      setResult('No valid places available. Update places.json.');
       return;
     }
-    const place = pool[Math.floor(Math.random() * pool.length)];
-    const panoPos = await findPanoramaNear(place.lat, place.lng);
-    if (!panoPos) {
-      used.add(place.id); // skip uncovered
-      setStatus('No Street View near this location — picking another…', 'warn');
-      return startRound();
+
+    // Try a few picks to find one with coverage
+    const maxAttempts = PLACES.length || 1;
+    for (let i = 0; i < maxAttempts; i++) {
+      const place = candidates[Math.floor(Math.random() * candidates.length)];
+      if (!place) break;
+
+      const panoPos = await findPanoramaNear(place.lat, place.lng);
+      if (panoPos) {
+        current = place;
+        used.add(place.id);
+        showPanoramaAt(panoPos, place);
+        setResult('Make a guess!');
+        return;
+      } else {
+        // mark used so we don’t keep retrying uncovered coords
+        used.add(place.id);
+      }
     }
 
-    current = place;
-    used.add(place.id);
-    showPanoramaAt(panoPos, place);
-    resetRoundUI();
+    setResult('No Street View coverage for remaining locations. Please update places.json.');
   }
 
-  function isGuessCorrect(guess, place) {
-    const g = guess.toLowerCase().trim();
-    return (
-      (place.name && g.includes(place.name.toLowerCase())) ||
-      (place.city && g.includes(place.city.toLowerCase())) ||
-      (place.country && g.includes(place.country.toLowerCase()))
-    );
+  // ----- Guess logic tied to your mode & input IDs -----
+  function isGuessCorrect(guess, place, mode) {
+    const g = (guess || '').toLowerCase().trim();
+    const name = (place.name || '').toLowerCase();
+    const city = (place.city || '').toLowerCase();
+    const country = (place.country || '').toLowerCase();
+
+    if (!g) return false;
+    if (mode === 'easy') {
+      return country && g.includes(country);
+    } else { // 'hard' (City)
+      return (city && g.includes(city)) || (name && g.includes(name));
+    }
   }
 
-  function handleGuess() {
+  // ----- Inline handlers expected by your HTML -----
+  window.submitGuess = function submitGuess() {
     if (!current) return;
-    const guess = els.guessInput.value.trim();
-    if (!guess) return setStatus('Type a guess first.', 'warn');
-    rounds += 1;
-
-    if (isGuessCorrect(guess, current)) {
+    const mode = els.mode?.value || 'easy';
+    const guess = els.guess?.value || '';
+    const correct = isGuessCorrect(guess, current, mode);
+    if (correct) {
       score += 1;
-      setStatus(`✅ Correct! ${current.name || current.city || current.country}`, 'success');
+      setResult(`✅ Correct: ${current.name || current.city || current.country}`);
     } else {
       score -= 1;
       const reveal = [current.name, current.city, current.country].filter(Boolean).join(', ');
-      setStatus(`❌ Not quite. Answer: ${reveal}`, 'error');
-      if (els.meta) els.meta.textContent = reveal;
+      setResult(`❌ Not quite. Answer: ${reveal}`);
     }
-    renderScore(score, rounds);
-    lockRoundUI();
-  }
+    renderScore();
+    setTimeout(startRound, 800);
+  };
 
-  function handleGiveUp() {
+  window.giveUp = function giveUp() {
     if (!current) return;
-    rounds += 1;
     score -= 1;
     const reveal = [current.name, current.city, current.country].filter(Boolean).join(', ');
-    setStatus(`👐 You gave up. Answer: ${reveal}`, 'warn');
-    if (els.meta) els.meta.textContent = reveal;
-    renderScore(score, rounds);
-    lockRoundUI();
-  }
+    setResult(`👐 You gave up. Answer: ${reveal}`);
+    renderScore();
+    setTimeout(startRound, 800);
+  };
 
-  function handleNext() {
-    startRound();
-  }
-
-  // Google callback
+  // ----- Google callback (must exist before API loads) -----
   window.initMap = async function initMap() {
-    els.streetview = document.getElementById('streetview');
-    els.score = document.getElementById('score');
-    els.status = document.getElementById('status');
-    els.guessInput = document.getElementById('guessInput');
-    els.guessBtn = document.getElementById('guessBtn');
-    els.giveUpBtn = document.getElementById('giveUpBtn');
-    els.nextBtn = document.getElementById('nextBtn');
-    els.meta = document.getElementById('meta');
+    // Bind DOM
+    els.sv     = document.getElementById('street-view'); // Street View container
+    els.mode   = document.getElementById('mode');
+    els.guess  = document.getElementById('guess');
+    els.result = document.getElementById('result');
+    els.score  = document.getElementById('score');
 
-    // off-DOM map to bind Street View
+    // Create an off-DOM map to bind Street View (optional)
     map = new google.maps.Map(document.createElement('div'), {
       center: { lat: 0, lng: 0 }, zoom: 2, streetViewControl: false
     });
 
-    // events
-    els.guessBtn.addEventListener('click', handleGuess);
-    els.giveUpBtn.addEventListener('click', handleGiveUp);
-    els.nextBtn.addEventListener('click', handleNext);
-    els.guessInput.addEventListener('keydown', e => { if (e.key === 'Enter') handleGuess(); });
+    renderScore();
 
-    // initial UI
-    renderScore(score, rounds);
-    setStatus('Loading locations…', 'info');
+    const ok = await loadPlaces();
+    if (!ok) return;
 
-    if (location.protocol === 'file:') {
-      setStatus('Serve over http:// (not file://) so places.json can be fetched.', 'warn');
-    }
-
-    if (!(await loadPlaces())) return;
     startRound();
   };
 })();
